@@ -1,0 +1,72 @@
+#!/bin/sh
+
+INTERVAL=0.03  # gamma update interval in seconds
+HUE_DELTA=0.01 # hsv hue increase per $INTERVAL seconds
+
+set_hue() {
+
+  # bc is much more pleasant than bash </3
+  echo "
+
+  define max (a, b) {
+    if (a > b) {
+      return (a)
+    }
+    return (b)
+  }
+
+  define floor (x) {
+    return (x - (x % 1))
+  }
+
+  define void hsv_to_rgb (h, s, v) {
+    auto i, f, p, q, t, c[]
+
+    i = floor(h * 6)
+    f = h * 6 - i
+    p = v * (1 - s)
+    q = v * (1 - f * s)
+    t = v * (1 - (1 - f) * s)
+
+    if (i % 6 == 0) {
+      c[0] = v; c[1] = t; c[2] = p
+    }
+    if (i % 6 == 1) {
+      c[0] = q; c[1] = v; c[2] = p
+    }
+    if (i % 6 == 2) {
+      c[0] = p; c[1] = v; c[2] = t
+    }
+    if (i % 6 == 3) {
+      c[0] = p; c[1] = q; c[2] = v
+    }
+    if (i % 6 == 4) {
+      c[0] = t; c[1] = p; c[2] = v
+    }
+    if (i % 6 == 5) {
+      c[0] = v; c[1] = p; c[2] = q
+    }
+
+    print \" -rgamma \", max(c[0] * 10, 0.1)
+    print \" -ggamma \", max(c[1] * 10, 0.1)
+    print \" -bgamma \", max(c[2] * 10, 0.1)
+
+  }
+
+  hsv_to_rgb($1, 1, 1)
+
+  " | bc | xargs xgamma -quiet
+
+}
+
+main() {
+  h=0
+  while true
+  do
+    h=$(echo "$h + $HUE_DELTA % 1" | bc)
+    set_hue "$h" > /dev/null
+    sleep "$INTERVAL"
+  done
+}
+
+main
